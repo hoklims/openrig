@@ -1,4 +1,5 @@
 import nodePath from "node:path";
+import { fromFsSafeName, toFsSafeName } from "../domain/fs-safe-id.js";
 import fs from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import type { TmuxAdapter } from "./tmux.js";
@@ -101,7 +102,7 @@ export class ClaudeCodeAdapter implements RuntimeAdapter {
     const skillsDir = nodePath.join(binding.cwd, ".claude", "skills");
     if (this.fs.exists(skillsDir) && this.fs.listFiles) {
       for (const file of this.fs.listFiles(skillsDir)) {
-        results.push({ effectiveId: file, category: "skill", installedPath: nodePath.join(skillsDir, file) });
+        results.push({ effectiveId: fromFsSafeName(file), category: "skill", installedPath: nodePath.join(skillsDir, file) });
       }
     }
     return results;
@@ -519,11 +520,11 @@ export class ClaudeCodeAdapter implements RuntimeAdapter {
 
   private resolveTargetDir(entry: ProjectionEntry, cwd: string): string | null {
     switch (entry.category) {
-      case "skill": return nodePath.join(cwd, ".claude", "skills", entry.effectiveId);
+      case "skill": return nodePath.join(cwd, ".claude", "skills", toFsSafeName(entry.effectiveId));
       case "guidance": return null; // handled via merge
       case "subagent": return nodePath.join(cwd, ".claude", "agents");
-      case "plugin": return nodePath.join(cwd, ".claude", "plugins", entry.effectiveId);
-      case "runtime_resource": return nodePath.join(cwd, ".claude", "extensions", entry.effectiveId);
+      case "plugin": return nodePath.join(cwd, ".claude", "plugins", toFsSafeName(entry.effectiveId));
+      case "runtime_resource": return nodePath.join(cwd, ".claude", "extensions", toFsSafeName(entry.effectiveId));
       default: return null;
     }
   }

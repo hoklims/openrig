@@ -14,6 +14,7 @@
 // increments (A5 items 5-8) — deliberately NOT here.
 
 import nodePath from "node:path";
+import { toFsSafeName } from "../domain/fs-safe-id.js";
 import { randomUUID } from "node:crypto";
 import type { TmuxAdapter } from "./tmux.js";
 import { yoloEnabled, type ResolvedLaunchPosture } from "./yolo-mode.js";
@@ -291,7 +292,7 @@ export class StubRuntimeAdapter implements RuntimeAdapter {
       return this.mergeGuidance(targetPath, entry.effectiveId, this.fsOps.readFile(entry.absolutePath));
     }
     if (entry.category === "skill") {
-      const targetDir = nodePath.join(binding.cwd, ".openrig", "stub", "skills", entry.effectiveId);
+      const targetDir = nodePath.join(binding.cwd, ".openrig", "stub", "skills", toFsSafeName(entry.effectiveId));
       this.fsOps.mkdirp(targetDir);
       const isDir = this.fsOps.listFiles ? this.fsOps.listFiles(entry.absolutePath).length > 0 : false;
       if (isDir && this.fsOps.listFiles) {

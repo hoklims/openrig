@@ -3,6 +3,7 @@ import nodePath from "node:path";
 import { describe, expect, it } from "vitest";
 import { CodexRuntimeAdapter } from "../src/adapters/codex-runtime-adapter.js";
 import { hashContent } from "../src/domain/conflict-detector.js";
+import { toFsSafeName } from "../src/domain/fs-safe-id.js";
 import { claudeConflictTargetPath, planProjection, projectionConflictWarnings, type ProjectionInput, type ProjectionPlan } from "../src/domain/projection-planner.js";
 import type { NodeBinding } from "../src/domain/runtime-adapter.js";
 
@@ -20,7 +21,7 @@ const start = instantiator.indexOf("    const planResult = planProjection({");
 const end = instantiator.indexOf("    const resolvedFiles = this.buildResolvedStartupFiles(", start);
 if (start < 0 || end < start) throw new Error("Production projection planning block not found");
 const buildPlan = new Function(
-  "planProjection", "claudeConflictTargetPath", "projectionConflictWarnings", "nodePath",
+  "planProjection", "claudeConflictTargetPath", "projectionConflictWarnings", "nodePath", "toFsSafeName",
   "input", "configResult", "resolveResult", "projectionManifest", "launchResult", "canonicalSessionName",
   instantiator.slice(start, end) + "\nreturn planResult.plan;",
 );
@@ -58,7 +59,7 @@ function fixture(target: "absent" | "identical" | "edited", runtime = "codex", f
   const plan: ProjectionPlan = buildPlan.call(
     { deps: { fsOps, rigRepo: { getRigClaudeManagedBlockFile: () => "CLAUDE.local.md" } } },
     (input: ProjectionInput) => { resolveTargetPath = input.resolveTargetPath!; return planProjection(input); },
-    claudeConflictTargetPath, projectionConflictWarnings, nodePath,
+    claudeConflictTargetPath, projectionConflictWarnings, nodePath, toFsSafeName,
     { member: { runtime }, rigId: "fixture", force }, { config }, { collisions: [] },
     { lastHash: (path: string) => path === codexFile ? hashContent(sourceText) : null },
     { warnings: [] }, "dev-check@fixture",
@@ -76,6 +77,18 @@ function fixture(target: "absent" | "identical" | "edited", runtime = "codex", f
 }
 
 describe("Codex skill projection in a shared project", () => {
+  it("escapes a qualified skill id in the Codex conflict target on a Windows host", () => {
+    const realPlatform = process.platform;
+    Object.defineProperty(process, "platform", { value: "win32" });
+    try {
+      const f = fixture("absent", "codex");
+      const target = f.resolveTargetPath("skill", "shared:my-skill", "/fixture/project", undefined);
+      expect(target.replace(/\\/g, "/")).toBe("/fixture/project/.agents/skills/shared%3Amy-skill/SKILL.md");
+    } finally {
+      Object.defineProperty(process, "platform", { value: realPlatform });
+    }
+  });
+
   it("writes the missing Codex skill when the Claude copy is already identical", async () => {
     const f = fixture("absent");
     expect(await f.project()).toEqual({ projected: ["shared-skill"], skipped: [], failed: [] });

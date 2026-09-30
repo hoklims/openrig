@@ -1,4 +1,5 @@
 import nodePath from "node:path";
+import { toFsSafeName } from "./fs-safe-id.js";
 import type Database from "better-sqlite3";
 import {
   resolvePermissionPolicyAttachment,
@@ -1969,7 +1970,7 @@ export class PodRigInstantiator {
       // the same source startNode binds for the write).
       resolveTargetPath: (category, effectiveId, cwd, sourcePath) =>
         input.member.runtime === "codex" && category === "skill"
-          ? nodePath.join(cwd, ".agents", "skills", effectiveId, "SKILL.md")
+          ? nodePath.join(cwd, ".agents", "skills", toFsSafeName(effectiveId), "SKILL.md")
           : claudeConflictTargetPath(
             category, effectiveId, cwd, sourcePath,
             input.member.runtime === "claude-code" ? this.deps.rigRepo.getRigClaudeManagedBlockFile(input.rigId) ?? undefined : undefined,

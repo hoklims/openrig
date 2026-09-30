@@ -1,4 +1,5 @@
 import nodePath from "node:path";
+import { toFsSafeName } from "./fs-safe-id.js";
 import * as os from "node:os";
 import type { StartupBlock } from "./types.js";
 import { classifyResourceProjection } from "./conflict-detector.js";
@@ -297,7 +298,7 @@ export function claudeConflictTargetPath(
 ): string | null {
   switch (category) {
     case "skill":
-      return nodePath.join(cwd, ".claude", "skills", effectiveId, "SKILL.md");
+      return nodePath.join(cwd, ".claude", "skills", toFsSafeName(effectiveId), "SKILL.md");
     case "subagent":
       return sourcePath ? nodePath.join(cwd, ".claude", "agents", nodePath.basename(sourcePath)) : null;
     case "guidance":

@@ -1,4 +1,5 @@
 import nodePath from "node:path";
+import { fromFsSafeName, toFsSafeName } from "../domain/fs-safe-id.js";
 import fs from "node:fs";
 import { createHash } from "node:crypto";
 import os from "node:os";
@@ -240,7 +241,7 @@ export class CodexRuntimeAdapter implements RuntimeAdapter {
     const skillsDir = nodePath.join(binding.cwd, ".agents", "skills");
     if (this.fs.exists(skillsDir) && this.fs.listFiles) {
       for (const file of this.fs.listFiles(skillsDir)) {
-        results.push({ effectiveId: file, category: "skill", installedPath: nodePath.join(skillsDir, file) });
+        results.push({ effectiveId: fromFsSafeName(file), category: "skill", installedPath: nodePath.join(skillsDir, file) });
       }
     }
     return results;
@@ -616,11 +617,11 @@ export class CodexRuntimeAdapter implements RuntimeAdapter {
 
   private resolveTargetDir(entry: ProjectionEntry, cwd: string): string | null {
     switch (entry.category) {
-      case "skill": return nodePath.join(cwd, ".agents", "skills", entry.effectiveId);
+      case "skill": return nodePath.join(cwd, ".agents", "skills", toFsSafeName(entry.effectiveId));
       case "guidance": return null; // handled via merge
       case "subagent": return nodePath.join(cwd, ".agents"); // .agents/{id}.yaml per preserved contract
-      case "plugin": return nodePath.join(cwd, ".codex", "plugins", entry.effectiveId);
-      case "runtime_resource": return nodePath.join(cwd, ".agents", "extensions", entry.effectiveId);
+      case "plugin": return nodePath.join(cwd, ".codex", "plugins", toFsSafeName(entry.effectiveId));
+      case "runtime_resource": return nodePath.join(cwd, ".agents", "extensions", toFsSafeName(entry.effectiveId));
       default: return null;
     }
   }

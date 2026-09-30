@@ -10,6 +10,7 @@
 // future contract, never a hidden mode here (BR-2).
 
 import nodePath from "node:path";
+import { fromFsSafeName, toFsSafeName } from "../domain/fs-safe-id.js";
 import { randomUUID } from "node:crypto";
 import type { TmuxAdapter } from "./tmux.js";
 import { piTrust } from "./yolo-mode.js";
@@ -99,7 +100,7 @@ export class PiRuntimeAdapter implements RuntimeAdapter {
     const skillsDir = nodePath.join(agentDir, "skills");
     if (this.fs.exists(skillsDir) && this.fs.listFiles) {
       for (const file of this.fs.listFiles(skillsDir)) {
-        results.push({ effectiveId: file, category: "skill", installedPath: nodePath.join(skillsDir, file) });
+        results.push({ effectiveId: fromFsSafeName(file), category: "skill", installedPath: nodePath.join(skillsDir, file) });
       }
     }
     return results;
@@ -386,7 +387,7 @@ export class PiRuntimeAdapter implements RuntimeAdapter {
     if (entry.category === "skill") {
       if (!binding.tmuxSession) return false;
       const { agentDir } = piSeatPaths(this.stateRoot, binding.tmuxSession);
-      const targetDir = nodePath.join(agentDir, "skills", entry.effectiveId);
+      const targetDir = nodePath.join(agentDir, "skills", toFsSafeName(entry.effectiveId));
       this.fs.mkdirp(targetDir);
       const isDir = this.fs.listFiles ? this.fs.listFiles(entry.absolutePath).length > 0 : false;
       if (isDir && this.fs.listFiles) {
