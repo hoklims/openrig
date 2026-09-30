@@ -338,6 +338,8 @@ export class TmuxAdapter {
     private exec: ExecFn,
     private fileOps: TmuxFileOps = defaultTmuxFileOps(),
     private argvExec?: ArgvExecFn,
+    /** POSIX shell for new panes; used only on the argv path, which is the Windows path. */
+    private paneShell?: string,
   ) {}
 
   /**
@@ -469,6 +471,7 @@ export class TmuxAdapter {
     const argv = ["tmux", "new-session", "-d", "-s", name];
     if (cwd != null) argv.push("-c", cwd);
     if (env) for (const [k, v] of Object.entries(env)) argv.push("-e", `${k}=${v}`);
+    if (this.argvExec && this.paneShell) argv.push(this.paneShell);
     const legacyParts = ["tmux", "new-session", "-d", "-s", shellQuote(name)];
     if (cwd != null) legacyParts.push("-c", shellQuote(cwd));
     if (env) for (const [k, v] of Object.entries(env)) legacyParts.push("-e", shellQuote(`${k}=${v}`));

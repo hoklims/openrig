@@ -1,5 +1,6 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import type { TmuxAdapter } from "./tmux.js";
+import { shellPathForLaunch } from "./windows-shell.js";
 import type { ResumeResult } from "./claude-resume.js";
 import { assessNativeResumeProbe, buildCodexResumeCore } from "../domain/native-resume-probe.js";
 import { runSyncSite } from "../domain/sync-site-wrap.js";
@@ -94,7 +95,7 @@ export class CodexResumeAdapter {
     );
 
     const textResult = await this.tmux.sendShellCommand(tmuxSessionName, this.options.launchPath
-      ? `env PATH=${shellQuote(this.options.launchPath)} ${cmd}` : cmd);
+      ? `env PATH=${shellQuote(shellPathForLaunch(this.options.launchPath))} ${cmd}` : cmd);
     if (!textResult.ok) {
       return { ok: false, code: "resume_failed", message: textResult.message };
     }
