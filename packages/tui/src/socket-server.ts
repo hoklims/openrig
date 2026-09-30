@@ -14,6 +14,7 @@ import net from "node:net";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { createHash } from "node:crypto";
 import { parseCommand } from "./grammar.js";
 import { serializeCommands } from "./commands/registry.js";
 import type { ViewState, ViewStateStore } from "./types.js";
@@ -60,12 +61,23 @@ export function describeState(state: ViewState) {
   };
 }
 
+/** libuv has no unix sockets on Windows: listening there takes a named pipe (\\.\pipe\name),
+ * and a plain file path fails with EACCES. A pipe is not a file: no mkdir, unlink or path cap. */
+export function isNamedPipePath(socketPath: string): boolean {
+  return /^\\\\[.?]\\pipe\\/.test(socketPath);
+}
+
 /** Default socket home follows the shipped OPENRIG_HOME convention
- * (openrig-compat: ~/.openrig), herdr-style env override on top. */
-export function defaultSocketPath(instanceId: string): string {
+ * (openrig-compat: ~/.openrig), herdr-style env override on top. On Windows the same
+ * convention names a pipe instead, tagged with the home so two OpenRig homes do not collide. */
+export function defaultSocketPath(instanceId: string, platform: NodeJS.Platform = process.platform): string {
   const override = process.env["OPENRIG_TUI_SOCKET"];
   if (override) return override;
   const home = process.env["OPENRIG_HOME"] ?? path.join(os.homedir(), ".openrig");
+  if (platform === "win32") {
+    const tag = createHash("sha1").update(path.resolve(home).toLowerCase()).digest("hex").slice(0, 8);
+    return `\\\\.\\pipe\\openrig-tui-${tag}-${instanceId.replace(/[\\/]/g, "_")}`;
+  }
   return path.join(home, "run", `tui-${instanceId}.sock`);
 }
 
@@ -83,14 +95,17 @@ export async function createControlSocket(options: {
 }): Promise<ControlSocket> {
   const { socketPath, view, onMutation } = options;
   const currentContext = options.currentContext ?? (() => "standard");
-  const bytes = Buffer.byteLength(socketPath);
+  const pipe = isNamedPipePath(socketPath);
+  const bytes = pipe ? 0 : Buffer.byteLength(socketPath);
   if (bytes > MAX_SOCKET_PATH_BYTES) {
     throw new Error(
       `socket path too long (${bytes} bytes; unix sun_path caps ~104): ${socketPath} — use a short runtime dir (default: $OPENRIG_HOME/run)`,
     );
   }
-  fs.mkdirSync(path.dirname(socketPath), { recursive: true });
-  if (fs.existsSync(socketPath)) fs.unlinkSync(socketPath);
+  if (!pipe) {
+    fs.mkdirSync(path.dirname(socketPath), { recursive: true });
+    if (fs.existsSync(socketPath)) fs.unlinkSync(socketPath);
+  }
 
   const server = net.createServer((conn) => {
     let buf = "";
@@ -132,7 +147,7 @@ export async function createControlSocket(options: {
         close: () =>
           new Promise<void>((res) => {
             server.close(() => {
-              if (fs.existsSync(socketPath)) fs.unlinkSync(socketPath);
+              if (!pipe && fs.existsSync(socketPath)) fs.unlinkSync(socketPath);
               res();
             });
           }),

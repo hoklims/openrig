@@ -18,9 +18,19 @@ export function toPosixPathList(list: string): string {
   return list.split(";").filter((entry) => entry.length > 0).map(toPosixPath).join(":");
 }
 
+/**
+ * Git Bash's own tools (sed, dirname, uname...). A daemon started from PowerShell or cmd has
+ * no reason to carry them on its PATH, yet `env PATH=...` replaces the pane's PATH outright,
+ * and shell shims such as npm's `codex` need them. They come first, as in a Git Bash login,
+ * so that GNU find/sort win over C:\Windows\System32\find.exe/sort.exe.
+ */
+const MSYS_TOOLS_PATH = "/mingw64/bin:/usr/bin";
+
 /** The PATH value to put on an `env PATH=...` line that a seat's POSIX shell will run. */
 export function shellPathForLaunch(launchPath: string, platform: NodeJS.Platform = process.platform): string {
-  return platform === "win32" ? toPosixPathList(launchPath) : launchPath;
+  if (platform !== "win32") return launchPath;
+  const converted = toPosixPathList(launchPath);
+  return converted ? `${MSYS_TOOLS_PATH}:${converted}` : MSYS_TOOLS_PATH;
 }
 
 /**

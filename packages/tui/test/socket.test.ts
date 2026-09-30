@@ -93,7 +93,7 @@ describe("control-socket adapter (spike-adopted; arch boundary constraint)", () 
   });
 
   it("defaults the socket home to $OPENRIG_HOME/run (herdr-style convention) and stays under the limit", () => {
-    const p = defaultSocketPath("tui-1");
+    const p = defaultSocketPath("tui-1", "linux");
     expect(p).toMatch(/[/\\]run[/\\]tui-tui-1\.sock$/);
     expect(Buffer.byteLength(p)).toBeLessThanOrEqual(MAX_SOCKET_PATH_BYTES);
   });

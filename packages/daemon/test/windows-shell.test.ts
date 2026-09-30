@@ -33,8 +33,12 @@ describe("toPosixPath / toPosixPathList", () => {
       .toBe("/c/Users/me/bin:/d/tools:/c/Windows/System32");
   });
 
+  it("puts Git Bash's own tools first on the launch PATH, so sed/dirname/uname resolve", () => {
+    expect(shellPathForLaunch("C:\\a;C:\\b", "win32")).toBe("/mingw64/bin:/usr/bin:/c/a:/c/b");
+    expect(shellPathForLaunch("", "win32")).toBe("/mingw64/bin:/usr/bin");
+  });
+
   it("only rewrites the launch PATH on win32", () => {
-    expect(shellPathForLaunch("C:\\a;C:\\b", "win32")).toBe("/c/a:/c/b");
     expect(shellPathForLaunch("/usr/bin:/bin", "linux")).toBe("/usr/bin:/bin");
     expect(shellPathForLaunch("/usr/bin:/bin", "darwin")).toBe("/usr/bin:/bin");
   });
@@ -153,7 +157,7 @@ describe("Codex launch line on a Windows host", () => {
     const commands = await launchCommands("C:\\Users\\me\\bin;D:\\tools");
 
     expect(commands).toHaveLength(1);
-    expect(commands[0]).toContain("env PATH='/c/Users/me/bin:/d/tools' codex");
+    expect(commands[0]).toContain("env PATH='/mingw64/bin:/usr/bin:/c/Users/me/bin:/d/tools' codex");
   });
 
   it("leaves the PATH untouched elsewhere", async () => {
