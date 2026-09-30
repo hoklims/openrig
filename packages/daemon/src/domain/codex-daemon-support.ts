@@ -32,6 +32,15 @@ export async function probeCodexDaemonSupport(runHelp: () => Promise<string>): P
   return NO_DAEMON_OPTION.test(help) ? { kind: "supported" } : { kind: "legacy" };
 }
 
+/**
+ * npm installs Codex as `codex.cmd` on Windows, which execFile cannot resolve without a
+ * shell (spawn codex ENOENT). The command line is fixed, so running it through the shell
+ * takes no untrusted input.
+ */
+export function codexHelpNeedsShell(platform: NodeJS.Platform = process.platform): boolean {
+  return platform === "win32";
+}
+
 /** The production detector: runs `codex --help` asynchronously, so the daemon keeps serving. */
 export function codexDaemonSupportProbe(launchPath?: string, timeoutMs = 10_000): CodexDaemonSupportDetector {
   return (cwd) => probeCodexDaemonSupport(async () => {
@@ -43,7 +52,7 @@ export function codexDaemonSupportProbe(launchPath?: string, timeoutMs = 10_000)
       // already exited zero while a descendant kept them open. Bound the decision
       // separately; execFile still owns pipe/direct-child cleanup, not the whole tree.
       deadline = setTimeout(() => reject(new Error(`timed out after ${timeoutMs} ms`)), timeoutMs);
-      execFile("codex", ["--help"], { cwd, env, timeout: timeoutMs, killSignal: "SIGKILL", encoding: "utf-8" }, (error, stdout) => {
+      execFile("codex", ["--help"], { cwd, env, timeout: timeoutMs, killSignal: "SIGKILL", encoding: "utf-8", shell: codexHelpNeedsShell() }, (error, stdout) => {
         if (error) reject(error.killed ? new Error(`timed out after ${timeoutMs} ms`) : error);
         else resolve(stdout);
       });
